@@ -1,9 +1,33 @@
 <template>
   <el-tree
-    :data="data"
+    :data="menus"
     :props="defaultProps"
-    @node-click="handleNodeClick"
-  ></el-tree>
+    :expand-on-click-node="false"
+    show-checkbox
+    node-key="catId"
+  >
+    <span class="custom-tree-node" slot-scope="{ node, data }">
+      <span>{{ node.label }}</span>
+      <span>
+        <el-button
+          v-if="node.level <= 2"
+          type="text"
+          size="mini"
+          @click="() => append(data)"
+        >
+          Append
+        </el-button>
+        <el-button
+          v-if="node.childNodes.length == 0"
+          type="text"
+          size="mini"
+          @click="() => remove(node, data)"
+        >
+          Delete
+        </el-button>
+      </span>
+    </span></el-tree
+  >
 </template>
 
 <script>
@@ -15,25 +39,38 @@ export default {
   props: {},
   data() {
     return {
-      data:[],
+      menus: [],
       defaultProps: {
         children: "children",
-        label: "label",
+        label: "name",
       },
     };
   },
   methods: {
-    handleNodeClick(data) {
-      console.log(data);
+    getMenus() {
+      this.$http({
+        url: this.$http.adornUrl("/product/category/list/tree"),
+        method: "get",
+      }).then(({ data }) => {
+        console.log("成功获取到菜单数据....", data.data);
+        this.menus = data.data;
+      });
     },
-    getMenus(){
-        this.$http({
-          url: this.$http.adornUrl('/product/category/list/tree'),
-          method: 'get'
-        }).then(data=>{
-            console.log("成功获取到菜单数据....",data)
-        })
-    } 
+    append(data) {
+      console.log("append", data);
+    },
+    remove(node, data) {
+      var ids = [data.catId];
+      this.$http({
+        url: this.$http.adornUrl("/product/category/delete"),
+        method: "post",
+        data: this.$http.adornData(ids, false),
+      }).then(({ data }) => {
+        console.log("删除成功")
+        this.getMenus();
+      });
+      console.log("remove", node, data);
+    },
   },
   //生命周期 - 创建完成（可以访问当前 this 实例）
   created() {
