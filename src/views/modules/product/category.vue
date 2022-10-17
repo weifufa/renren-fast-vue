@@ -9,6 +9,7 @@
       :default-expanded-keys="expandedkey"
       draggable
       :allow-drop="allowDrop"
+      @node-drop="handleDrop"
     >
       <span class="custom-tree-node" slot-scope="{ node, data }">
         <span>{{ node.label }}</span>
@@ -72,6 +73,7 @@ export default {
   props: {},
   data() {
     return {
+      updatedNodes: [],
       maxLevel: 1,
       title: "",
       dialogType: "", //edit,add
@@ -104,20 +106,76 @@ export default {
         this.menus = data.data;
       });
     },
+    handleDrop(draggingNode, dropNode, dropType, ev) {
+      console.log("tree drop: ", draggingNode, dropNode, dropType);
+      //1.当前节点最新的父结点id
+      let pCid = 0;
+      let siblings = null;
+      if (dropType == "before" || dropNode == "after") {
+        pCid =
+          dropNode.parent.data.catId == undefined
+            ? 0
+            : dropNode.parent.data.catId; //取出当前父结点
+        siblings = dropNode.parent.childNodes; //
+      } else {
+        pCid = dropNode.data.catId;
+        siblings = dropNode.childNodes;
+      }
+      //2.当前拖拽节点的最新顺序
+      for (let i = 0; i < siblings.length; i++) {
+        if (siblings[i].data.catId == draggingNode.data.catId) {
+          //如果遍历的是当前正在拖拽的结点id
+          let catLevel = draggingNode.level;
+          //需要改层级，还有子节点层级
+          if (siblings[i].level != draggingNode.level) {
+            //当前结点的层级发送变化
+            catLevel = siblings[i].level; //赋值最新层级
+            //修改他子节点的层级
+           this.updateChildNodeLevel(siblings[i]);
+          }
+          //需要改父id
+          this.updatedNodes.push({
+            catId: siblings[i].data.catId,
+            i,
+            parentCid: pCid,
+            catLevel: catLevel,
+          });
+        } else {
+          this.updatedNodes.push({ catId: siblings[i].data.catId, i });
+        }
+      }
+      //3.当前拖拽节点的最新层级
+
+      console.log("updateNode", this.updatedNodes);
+      this.updatedNodes=[];
+    },
+    updateChildNodeLevel(node) {
+      //修改当前结点的所有子节点层级
+      if (node.childNodes.length > 0) {
+        for (let i = 0; i<node.childNodes.length; i++) {
+          var cNode = node.childNodes[i].data; //拿到当前节点的数据
+          this.updatedNodes.push({
+            catId:cNode.catId, //获取子节点的id
+            catLevel: node.childNodes[i].level,//更新子节点的层级
+          });
+          this.updateChildNodeLevel(node.childNodes[i]); //因为结点还有子节点，所以递归
+        }
+      }
+    },
     allowDrop(draggingNode, dropNode, type) {
       // //初始化深度置为1;
-       this.maxLevel=1;
+      this.maxLevel = 1;
       //1.被拖动的当前节点以及所在的父结点总层数不能大于3
       //1)、被拖动的当前结点总层数
-      console.log("allowDrop", draggingNode, dropNode, type);
+      // console.log("allowDrop", draggingNode, dropNode, type);
       this.countNodeLeve(draggingNode.data);
       //当前正在拖动的结点+父结点所在的深度不大于3即可
       let deep = this.maxLevel - draggingNode.data.catLevel + 1;
-      console.log("当前位置层级：", draggingNode.data.catLevel);
-      console.log("递归出来的最大深度：", this.maxLevel);
-      console.log("算出来的深度：", deep);
-        console.log("目标深度", dropNode.level);
-      
+      // console.log("当前位置层级：", draggingNode.data.catLevel);
+      // console.log("递归出来的最大深度：", this.maxLevel);
+      // console.log("算出来的深度：", deep);
+      // console.log("目标深度", dropNode.level);
+
       if (type == "inner") {
         //如果是拖到深度里边那就是相加关系
         return deep + dropNode.level <= 3;
