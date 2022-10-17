@@ -7,6 +7,8 @@
       show-checkbox
       node-key="catId"
       :default-expanded-keys="expandedkey"
+      draggable
+      :allow-drop="allowDrop"
     >
       <span class="custom-tree-node" slot-scope="{ node, data }">
         <span>{{ node.label }}</span>
@@ -19,7 +21,7 @@
           >
             Append
           </el-button>
-           <el-button
+          <el-button
             v-if="node.level <= 2"
             type="text"
             size="mini"
@@ -27,29 +29,35 @@
           >
             Edit
           </el-button>
-          <el-button
-            type="text"
-            size="mini"
-            @click="() => remove(node,data)"
-          >
+          <el-button type="text" size="mini" @click="() => remove(node, data)">
             Delete
           </el-button>
         </span>
       </span></el-tree
     >
     <el-dialog
-      title="提示"
+      :title="title"
       :visible.sync="dialogVisible"
       width="30%"
+      :close-on-click-modal="false"
     >
       <el-form :model="category">
         <el-form-item label="活动名称">
           <el-input v-model="category.name" autocomplete="off"></el-input>
         </el-form-item>
+        <el-form-item label="图标">
+          <el-input v-model="category.icon" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item label="计量单位">
+          <el-input
+            v-model="category.productUnit"
+            autocomplete="off"
+          ></el-input>
+        </el-form-item>
       </el-form>
       <span slot="footer" class="dialog-footer">
         <el-button @click="dialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="addCategory()">确 定</el-button>
+        <el-button type="primary" @click="submitData()">确 定</el-button>
       </span>
     </el-dialog>
   </div>
@@ -64,7 +72,19 @@ export default {
   props: {},
   data() {
     return {
-      category: { name: "", parentCid: 0, catLevel: 0, showStatus: 1, sort: 0 },
+      maxLevel: 1,
+      title: "",
+      dialogType: "", //edit,add
+      category: {
+        name: "",
+        parentCid: 0,
+        catLevel: 0,
+        showStatus: 1,
+        sort: 0,
+        productUnit: "",
+        icon: "",
+        catId: null,
+      },
       dialogVisible: false,
       menus: [],
       expandedkey: [],
@@ -84,34 +104,115 @@ export default {
         this.menus = data.data;
       });
     },
+    allowDrop(draggingNode, dropNode, type) {
+      // //初始化深度置为1;
+       this.maxLevel=1;
+      //1.被拖动的当前节点以及所在的父结点总层数不能大于3
+      //1)、被拖动的当前结点总层数
+      console.log("allowDrop", draggingNode, dropNode, type);
+      this.countNodeLeve(draggingNode.data);
+      //当前正在拖动的结点+父结点所在的深度不大于3即可
+      let deep = this.maxLevel - draggingNode.data.catLevel + 1;
+      console.log("当前位置层级：", draggingNode.data.catLevel);
+      console.log("递归出来的最大深度：", this.maxLevel);
+      console.log("算出来的深度：", deep);
+        console.log("目标深度", dropNode.level);
+      
+      if (type == "inner") {
+        //如果是拖到深度里边那就是相加关系
+        return deep + dropNode.level <= 3;
+      } else {
+        return deep + dropNode.parent.level <= 3; // 前边和后边只用判断当前结点深度加上父结点深度是否大于3
+      }
+    },
+    countNodeLeve(node) {
+      //找到所有子节点，找到最大深度
+      if (node.children != null && node.children.length > 0) {
+        for (let i = 0; i < node.children.length; i++) {
+          if (node.children[i].catLevel > this.maxLevel) {
+            this.maxLevel = node.children[i].catLevel;
+          }
+          this.countNodeLeve(node.children[i]);
+        }
+      }
+    },
     edit(data) {
-console.log("要修改的数据",data)
+      this.dialogType = "edit";
+      this.title = "修改分类";
+      console.log("要修改的数据", data);
+      this.dialogVisible = true;
+      //发送请求获取当前结点最新的数据
+      this.$http({
+        url: this.$http.adornUrl(`/product/category/info/${data.catId}`),
+        method: "get",
+      }).then(({ data }) => {
+        console.log("要回显的数据", data);
+        this.category.name = data.data.name;
+        this.category.catId = data.data.catId;
+        this.category.icon = data.data.icon;
+        this.category.productUnit = data.data.productUnit;
+        this.category.parentCid = data.data.parentCid;
+      });
     },
     append(data) {
+      this.dialogType = "add";
+      this.title = "添加分类";
       this.dialogVisible = true;
-    this.category.parentCid=data.catId;
-     this.category.catLevel=data.catLevel*1+1;//转换数字再+1
-      console.log("append", data);
+      this.category.parentCid = data.catId;
+      this.category.catLevel = data.catLevel * 1 + 1; //转换数字再+1
+      this.category.catId = null;
+      this.category.name = null;
+      this.category.icon = "";
+      this.category.productUnit = "";
     },
-    //添加三三级分类
+    submitData() {
+      if (this.dialogType == "add") {
+        this.addCategory();
+      }
+      if (this.dialogType == "edit") {
+        this.editCategory();
+      }
+    },
+    //修改三级分类
+    editCategory() {
+      var { catId, name, icon, productUnit } = this.category; //解构
+
+      this.$http({
+        url: this.$http.adornUrl("/product/category/update"),
+        method: "post",
+        data: this.$http.adornData({ catId, name, icon, productUnit }, false),
+      }).then(({ data }) => {
+        this.$message({
+          message: "菜单修改成功！",
+          type: "success",
+        });
+        //关闭对话框
+        this.dialogVisible = false;
+        //刷新出新的菜单
+        this.getMenus();
+        //设置需要默认展开的菜单
+        this.expandedkey = [this.category.parentCid];
+      });
+    },
+    //添加三级分类
     addCategory() {
       console.log("提交的三级分类数据", this.category);
       this.$http({
-      url: this.$http.adornUrl('/product/category/save'),
-      method: 'post',
-      data: this.$http.adornData(this.category, false)
+        url: this.$http.adornUrl("/product/category/save"),
+        method: "post",
+        data: this.$http.adornData(this.category, false),
       }).then(({ data }) => {
-         this.$message({
-              message: "菜单保存成功！",
-              type: "success",
-            });
-       });
-       //关闭对话框
-       this.dialogVisible=false;
+        this.$message({
+          message: "菜单保存成功！",
+          type: "success",
+        });
+        //关闭对话框
+        this.dialogVisible = false;
         //刷新出新的菜单
         this.getMenus();
-         //设置需要默认展开的菜单
-         this.expandedkey = [this.category.parentCid];
+        //设置需要默认展开的菜单
+        this.expandedkey = [this.category.parentCid];
+      });
     },
     remove(node, data) {
       var ids = [data.catId];
