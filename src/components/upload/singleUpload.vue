@@ -102,7 +102,7 @@
         this.fileList.pop();
         this.fileList.push({name: file.name, url: this.dataObj.host + '/' + this.dataObj.key.replace("${filename}",file.name) });
        this.emitInput(this.fileList[0].url);
-        console.log(this.fileList[0].url);
+      //  console.log(this.fileList[0].url);
       }
     }
   }
