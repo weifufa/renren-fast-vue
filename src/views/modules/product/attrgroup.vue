@@ -150,8 +150,9 @@ export default {
   props: {},
  data () {
       return {
+        catId:0,
         dataForm: {
-          key: ''
+          key:""
         },
         dataList: [],
         pageIndex: 1,
@@ -169,13 +170,18 @@ export default {
       //感知树节点被点击
       treenodeclick(data, node, component){
         console.log("attegroup感知到category的节点被点击",data, node, component);
-          console.log("刚才被点击的菜单id:",data.name);
+        console.log("刚才被点击的菜单id:",data.name);
+        if(node.level==3)
+        {
+         this.catId=data.catId;
+         this.getDataList();//重新查询
+        }
       },
       // 获取数据列表
       getDataList () {
         this.dataListLoading = true
         this.$http({
-          url: this.$http.adornUrl('/product/attrgroup/list'),
+          url: this.$http.adornUrl(`/product/attrgroup/list/${this.catId}`),
           method: 'get',
           params: this.$http.adornParams({
             'page': this.pageIndex,
