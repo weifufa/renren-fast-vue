@@ -391,13 +391,13 @@ export default {
           { required: true, message: "请选择一个分类", trigger: "blur" }
         ],
         brandId: [
-          { required: true, message: "请选择一个品牌", trigger: "blur" }
+          { required: false, message: "请选择一个品牌", trigger: "blur" }
         ],
         decript: [
-          { required: true, message: "请上传商品详情图集", trigger: "blur" }
+          { required: false, message: "请上传商品详情图集", trigger: "blur" }
         ],
         images: [
-          { required: true, message: "请上传商品图片集", trigger: "blur" }
+          { required: false, message: "请上传商品图片集", trigger: "blur" }
         ],
         weight: [
           {
@@ -675,7 +675,9 @@ export default {
           params: this.$http.adornParams({})
         }).then(({ data }) => {
           //先对表单的baseAttrs进行初始化
+          
           data.data.forEach(item => {
+                  if(item.attrs!=null&&item.attrs.length>0){
             let attrArray = [];
             item.attrs.forEach(attr => {
               attrArray.push({
@@ -685,6 +687,7 @@ export default {
               });
             });
             this.dataResp.baseAttrs.push(attrArray);
+                  }
           });
           this.dataResp.steped[0] = 0;
           this.dataResp.attrGroups = data.data;

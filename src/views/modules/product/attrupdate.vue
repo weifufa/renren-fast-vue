@@ -104,6 +104,7 @@ export default {
       }).then(({ data }) => {
         //先对表单的baseAttrs进行初始化
         data.data.forEach(item => {
+    
           let attrArray = [];
           item.attrs.forEach(attr => {
             let v = "";
